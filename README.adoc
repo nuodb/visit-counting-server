@@ -1,0 +1,171 @@
+# Visitor Counting Server
+
+To run this locally on your own machine, you will need:
+
+. Java JDK 8 (or later) installed.
+. Access to a NuoDB database. Options are:
+*  Use Docker Desktop (any platform) - easiest option.
+* Install NuoDB locally (Windows or Linux only) - useful if you need to do a lot of local development and don't need to run multiple NuoDB versions.
+. A valid NuoDB license
+
+IMPORTANT: If you do not have a NuoDB license contact nuodb.support@3ds.com immediately to request one, as it can take a while to arrange.
+
+## The Database
+
+In our examples below, we assume the following:
+
+* _Database Host:_ localhost (this is actually the AP host but we assume everything is running on your machine).
+* _Database Name:_ demo
+* _User Name:_ dba
+* _Password:_ dba
+
+If you have your own database available already, change these values accordingly.
+
+The application will create a single table called `Visits` in your database.
+
+## Software
+
+Your company may have preferred sources for Java, NuoDB and/or Docker.
+The public locations are:
+
+Java::
+
+* OpenJDK is available here: https://www.azul.com/downloads/zulu.
+  * Scroll down to _Zulu CommunityTM Downloads_
+  * Enter Java version, your platform and processor size.
+
+NuoDB::
+
+* Go to the NuoDB support portal - you must already have an account:
+** The download instructions are https://support.nuodb.com/hc/en-us/articles/5257381367060-Physical-Virtual-Machine-Environment[here].
+* Downland and run the installer for your platform
+** If you don't have permission to run an installer on your machine, you can use the tar/zip packages instead, but they require additional manual setup.
+* See also NuoDB online documentation:
+** https://doc.nuodb.com/nuodb/latest/deployment-models/physical-or-vm-based-environments-with-nuodb-admin/installing-nuodb/installing-nuodb-on-linux[Installation for Linux]
+** https://doc.nuodb.com/nuodb/latest/deployment-models/physical-or-vm-based-environments-with-nuodb-admin/installing-nuodb/installing-nuodb-on-windows[Installation for Windows].
+
+Docker::
+
+* https://www.docker.com/products/docker-desktop[Docker for Desktop] is an easy option for Windows, MacOS or Linux (and has a one-click option to run Kubernetes as well).
+* Running NuoDB on Docker uses `docker compose`.
+** A convenient project is available at https://github.com/nuodb/nuodb-compose.
+** The "_Single Container_" or "_monolith_" option is sufficient.
+** The online documentation has a _getting-started_ guide to help you:
+https://doc.nuodb.com/nuodb/latest/quick-start-guide/docker-compose/
+
+## Run as an Application
+
+. Open a Windows _CMD_ or _Powershell_ window, or a Linux/MacOS _Terminal_.
+
+. To build:
++
+```sh
+Windows:   mvnw package
+Linux:     ./mvnw package
+```
+
+. Should create an executable jar in `target/`.  Run it:
++
+```sh
+java -jar target/visit-counting-server-1.0.0.jar
+```
+
+. Make a request:
+
+   * Open your browser to http://localhost:8080
+   * Or, in a second CMD/Terminal window invoke `curl http://localhost:8080`
+
+. You should see:
++
+```bash
+Hello from <ip-address> - <visit message>
+```
+. Repeat the request (refresh your browser tab or rerun `curl`).
+
+   * The response message should start counting your visits.
+
+. Kill the application and run it again.
+
+. Make a request again and it should say its your first visit (the application is using an im-memory counter which is reset if you restart).
+
+**IMPORTANT:** Stop the application once you are satisfied it is working to free up port `8080`.
+
+== Using Persistence
+
+. The application is configured using the http://spring.io[Spring Framework], an alternative to JEE and TomEE.
+
+* Spring creates instance of key objects in an application and sets up the relationships (dependencies) between them.
+* This is similar to how JEE provide `@Resource` and other configuration annotations (which JEE did not support when Spring was first developed).
+* For a simple application like this one, Spring is lighter weight than using TomEE.
+
+. Spring supports conditional inclusion of dependencies.
+One way it does this is via a `Profile`.
+To enable persistence requires the "jdbc" profile.
+
+* Rerun the application with this profile:
++
+```sh
+java -D-Dspring.profiles.active=jdbc-jar target/visit-counting-server-1.0.0.jar
+```
+
+. By default, the code will use the configuration properties in `application.properties`.
+
+* If need be, modify these to suit your database.
+
+. If you examine the log output you should see 
++
+```
+INFO  c.n.quick.VisitorCountingServerApplication   The following 1 profile is active: "jdbc"
+```
+
+. Make some requests as before, then restart the application.
+
+. Now if you make a request, it should continue to count from where it left off, not restart from zero.
+
+**IMPORTANT:** Stop the application once you are satisfied it is working to free up port `8080`.
+
+== Mock DBaaS environment
+
+. NuoDBaaS, like most Cloud systems, uses environment variables to pass data to an application
+
+* Environment variables are a convenient common denominator - all modern operating systems and programming languages support the use of environment variables.
+
+. NuoDBaaS provides these 5 environment variables to an application:
+* `NUODB_ADMIN_ENDPOINT` - The IP address of an Admin Process to ask for a database connection.
+* `NUODB_DB_NAME` - The name of the database to conenct to.
+* `NUODB_DB_USER` - The "root" or master database user.
+* `NUODB_DB_PASSWORD` -0 The password of the "root" user.
+* `NUODB_CA_PEM` - A certificate to use when requiring connections secured using TLS.
+
+. We can simulate a DBaaS environment by setting these environment variables to point to our local database
+* _This is not a standard NuoDBaaS feature_. The application has explicit, extra code to enable this flexibility - see the `DataSourceConfiguration` class.
+* On Linux or MacOS, run this command:
++
+```bash
+NUODB_ADMIN_ENDPOINT=localhost NUODB_DB_NAME=demo NUODB_DB_USER=dba NUODB_DB_PASSWORD=dba java -Dspring.profiles.active=jdbc -jar target/visit-counting-server-1.0.0.jar
+```
+
+* On Windows:
+** Start a new _CMD_/_Powershell_ window
+** Set the environment variables
++
+```CMD
+set NUODB_ADMIN_ENDPOINT=localhost
+set NUODB_DB_NAME=demo
+set NUODB_DB_USER=dba
+set NUODB_DB_PASSWORD=dba
+```
+** Now run the application:
++
+```
+java -Dspring.profiles.active=jdbc -jar target/visit-counting-server-1.0.0.jar
+```
+
+. Make a request.
+* The visitor message should continue counting from where it left off.
+
+. Clean up:
++
+**IMPORTANT:** Stop the application once you are satisfied it is working to free up port `8080`.
+
+* _Windows only:_ Destroy this `CMD`/`Powershell` window when you are happy everything is working as expected (to remove the environment variables).

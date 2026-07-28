@@ -1,0 +1,28 @@
+<!--
+  // SLF4J is included by the POM, and redirects Log4J (Hibernate) and Java Util
+  // logging (NuoDB) to Logback.
+  // This file configures Logback output (and avoids distracting warnings).
+  -->
+<configuration debug="false">
+
+    <!-- Based on example in https://stackify.com/logging-logback/ -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%-5level{5} %-44logger{44} %msg %n</pattern>
+<!--            <pattern>%magenta(%d{HH:mm:ss.SSS}) %red(%-5level{5}) %green(%-32logger{32}) %blue(%msg) %n</pattern>-->
+        </encoder>
+    </appender>
+
+    <root>
+        <appender-ref ref="STDOUT" />
+    </root>
+
+    <logger name="org" level="warn" />
+    <logger name="com" level="warn" />
+
+    <!-- Tests and test framework-->
+    <logger name="org.springframework" level="info"/>
+
+    <logger name="com.nuodb" level="info"/>
+
+</configuration>
