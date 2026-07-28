@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Map;
+import java.util.TreeMap;
 
 import javax.annotation.PreDestroy;
 
@@ -48,12 +49,6 @@ public class VisitorCountingServerApplication {
 		}
 	}
 
-	/**
-	 * Spring property for defining profiles (conditional inclusion or exclusion of
-	 * Spring Beans or configuration).
-	 */
-	private static final String SPRING_PROFILES_ACTIVE = "spring.profiles.active";
-
 	/** Class SLF4J logger. Spring Boot enables SLF4J over Logback by default. */
 	private static Logger LOGGER = LoggerFactory.getLogger(VisitorCountingServerApplication.class);
 
@@ -79,9 +74,9 @@ public class VisitorCountingServerApplication {
 	 * points that makes Spring Boot do its thing.
 	 * <p>
 	 * Spring Boot is an add-on to Spring to make Spring easier to use. Essentially
-	 * it is a "bean" definition generator, although we are not using much of its
-	 * capability here. We are using Spring Boot Actuator (which automatically sets
-	 * up monitoring endpoints for a Web application).
+	 * it is a "bean" definition generator, in this case it will define the
+	 * DataSource and the Spring Boot Actuator (which automatically sets up
+	 * monitoring endpoints for a Web application).
 	 * <p>
 	 * Most importantly, Spring Boot initializes Spring itself. In particular it
 	 * tells Spring to look for annotated classes in the current package and any
@@ -115,17 +110,15 @@ public class VisitorCountingServerApplication {
 	 *             incoming HTTP requests.
 	 */
 	public static void main(String[] args) {
-		// Make sure a TLS profile is also set. Only enable TLS profile if NUODB_CA_PEM
-		// property is defined in the environment (NuoDBaaS does this) or as a JVM
-		// system property (handy option when testing).
-		String activeProfiles = System.getProperty(SPRING_PROFILES_ACTIVE);
-		boolean containsTlaProfile = activeProfiles != null ? activeProfiles.contains("tla") : false;
 
-		if (activeProfiles != null && (!containsTlaProfile)) {
-			String tlsProfile = System.getenv("NUODB_CA_PEM") == null && System.getProperty("NUODB_CA_PEM") == null
-					? "no-tls"
-					: "tls";
-			System.setProperty(SPRING_PROFILES_ACTIVE, activeProfiles + ',' + tlsProfile);
+		// If a PEM is specified in the environment (typically for a NuoDBaaS database)
+		// specify the extra connection-properties required as a System property. Spring
+		// will add them to the end of the database URL (see 'application.properties').
+		String pem = System.getenv("NUODB_CA_PEM");
+
+		if (pem != null) {
+			System.setProperty("PEM_INFO",
+					"&trustedCertificates=${NUODB_CA_PEM}&verifyHostname=false&allowSRPFallback=false");
 		}
 
 		// Default port (8080 is the default port the Tomcat servlet system uses).
@@ -160,7 +153,7 @@ public class VisitorCountingServerApplication {
 
 		// Log system environment
 		LOGGER.info("System Environment ...");
-		Map<String, String> env = System.getenv();
+		Map<String, String> env = new TreeMap<>(System.getenv());
 
 		for (Map.Entry<String, String> entry : env.entrySet())
 			LOGGER.info("    " + entry.getKey() + "=" + entry.getValue());
@@ -197,7 +190,16 @@ public class VisitorCountingServerApplication {
 		// context. Among other things, this starts embedded Tomcat web server which
 		// runs up multiple threads listening for HTTP requests on the specified port.
 		// The application will keep running until all Tomcat's threads have terminated.
-		app.run();
+		try {
+			app.run();
+		} catch (Exception e) {
+			if (e.getCause() != null)
+				e = (Exception) e.getCause();
+
+			LOGGER.error("Application terminating due to {}: {}", e.getClass().getSimpleName(),
+					e.getLocalizedMessage());
+			return;
+		}
 
 		// Log the process id if possible
 		String pid;

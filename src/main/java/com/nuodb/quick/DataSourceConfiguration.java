@@ -1,17 +1,18 @@
 package com.nuodb.quick;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+
 import javax.sql.DataSource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Bean;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 
 import com.nuodb.quick.VisitorInfo.StorageSetup;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 
 /**
  * Dedicated Spring configuration, just to setup the data source. Overrides
@@ -22,17 +23,17 @@ import com.zaxxer.hikari.HikariDataSource;
 @Profile("jdbc")
 public class DataSourceConfiguration {
 
-	/**
-	 * The name of NuoDB's JDBC driver class.
-	 */
-	public static final String NUODB_DRIVER_CLASS_NAME = "com.nuodb.jdbc.Driver";
+//	/**
+//	 * The name of NuoDB's JDBC driver class.
+//	 */
+//	public static final String NUODB_DRIVER_CLASS_NAME = "com.nuodb.jdbc.Driver";
 
-	private Logger logger = LoggerFactory.getLogger(getClass());
+	private Logger logger = LoggerFactory.getLogger("com.nuodb.quick.DataSourceConfiguration");
 
-	/**
-	 * Spring's own Environment.
-	 */
-	private Environment env;
+//	/**
+//	 * Spring's own Environment.
+//	 */
+//	private Environment env;
 
 	/**
 	 * Save how the JDBC setup was configured - using Spring properties defined in
@@ -47,60 +48,17 @@ public class DataSourceConfiguration {
 	 * @param env The Spring environment - includes all the properties in
 	 *            {@code application.properties}.
 	 */
-	public DataSourceConfiguration(Environment env) {
-		this.env = env;
-		logger.info(" >>> DataSourceConfiguration");
-	}
-
-	/**
-	 * This overrides Spring Boot's default setup, so we can configure with or
-	 * without NuoDBaaS. With NuoDBaaS we use environment variables, without we
-	 * fetch properties from the Spring Environment. By default Spring invokes any
-	 * method annotated by {@code @Bean} just once.
-	 * 
-	 * @return An Hikari DataSource
-	 */
-	@Bean
-	public DataSource datasource() {
-
-		logger.info(" >>> Create data source");
-
-		// Look for one of the environment variables NuoDBaaS provides
-		String adminHost = System.getenv("NUODB_ADMIN_ENDPOINT");
-		String url;
-		String username;
-		String password;
-
-		if (adminHost != null) {
-			// Using NuoDBaaS - get configuration from the environment;
-			String cert = System.getenv("NUODB_CA_PEM");
-			String dbName = System.getenv("NUODB_DB_NAME");
-			url = "jdbc:com.nuodb://" + adminHost + '/' + dbName
-					+ (cert == null ? "" : "?" + "trustedCertificate=" + cert);
-			username = System.getenv("NUODB_DB_USER");
-			password = System.getenv("NUODB_DB_PASSWORD");
-			logger.info(" >>> Using NuoDBaaS environment variables");
-			storageSetup = StorageSetup.NUO_DBAAS;
-		} else {
-			// Do what Spring Boot does - use the properties in 'application.properties'.
-			// You must have a database called 'demo' running on your local machine.
-			url = env.getProperty("spring.datasource.url");
-			password = env.getProperty("spring.datasource.password");
-			username = env.getProperty("spring.datasource.username");
-			logger.info(" >>> Using Spring datasource properties");
-			storageSetup = StorageSetup.NUO_SPRING;
+	public DataSourceConfiguration(Environment env, DataSource dataSource, ConfigurableApplicationContext context) {
+		String url = env.getProperty("spring.datasource.url");
+		logger.info("Database URL = {}", url);
+		
+		try (Connection conn = dataSource.getConnection()) {
+			; // OK
+		} catch (SQLException e) {
+			logger.error("Unable to connect to database: {}", e.getLocalizedMessage());
+			context.close();
+			throw new RuntimeException("Unable to connect to database: " + e.getLocalizedMessage());
 		}
-
-		// Create a Hikari datasource - other DataSources are supported.
-		HikariConfig hconfig = new HikariConfig();
-		hconfig.setDriverClassName(NUODB_DRIVER_CLASS_NAME);
-		hconfig.setJdbcUrl(url);
-		hconfig.setUsername(username);
-		hconfig.setPassword(password);
-
-		DataSource ds = new HikariDataSource(hconfig);
-		logger.info(" >>> Returning a data source: {} for {}@{}", ds, username, url);
-		return ds;
 	}
 
 	/**
@@ -110,6 +68,8 @@ public class DataSourceConfiguration {
 	 *         {@link StorageSetup#NUO_SPRING}.
 	 */
 	public StorageSetup getStorageSetup() {
+		String adminHost = System.getenv("NUODB_ADMIN_ENDPOINT");
+		storageSetup = adminHost != null ? StorageSetup.NUO_DBAAS : StorageSetup.NUO_SPRING;
 		return storageSetup;
 	}
 }

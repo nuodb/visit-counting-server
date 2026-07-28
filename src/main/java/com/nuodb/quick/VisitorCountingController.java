@@ -1,6 +1,7 @@
 package com.nuodb.quick;
 
 import java.net.InetAddress;
+import java.util.Date;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -10,6 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -101,6 +105,7 @@ public class VisitorCountingController {
 	@RequestMapping("/kill")
 	public String shutdown() {
 		logger.warn("Application shutdown requested, terminating");
+		Date timeNow = new Date();
 
 		// Close the context in a separate thread so this method can return a response
 		// before the application shuts down.
@@ -113,9 +118,9 @@ public class VisitorCountingController {
 		});
 
 		t.start();
-		return "Application terminating";
+		return "Application terminating (" + timeNow + ')';
 	}
-	
+
 //	@RequestMapping("/error")
 //	public String error() {
 //		return "Stuffed up!";
