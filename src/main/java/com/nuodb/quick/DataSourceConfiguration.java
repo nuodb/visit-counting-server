@@ -15,25 +15,14 @@ import org.springframework.core.env.Environment;
 import com.nuodb.quick.VisitorInfo.StorageSetup;
 
 /**
- * Dedicated Spring configuration, just to setup the data source. Overrides
- * Spring Boot's default DataSource setup. An instance of this configuration
- * will only be created and used if the {@code jdbc} profile is enabled.
+ * Dedicated Spring configuration, just to detect how the DataSource has been
+ * configured.  Also checks the {@link DataSource} is valid.
  */
 @Configuration
 @Profile("jdbc")
 public class DataSourceConfiguration {
 
-//	/**
-//	 * The name of NuoDB's JDBC driver class.
-//	 */
-//	public static final String NUODB_DRIVER_CLASS_NAME = "com.nuodb.jdbc.Driver";
-
 	private Logger logger = LoggerFactory.getLogger("com.nuodb.quick.DataSourceConfiguration");
-
-//	/**
-//	 * Spring's own Environment.
-//	 */
-//	private Environment env;
 
 	/**
 	 * Save how the JDBC setup was configured - using Spring properties defined in
@@ -51,7 +40,8 @@ public class DataSourceConfiguration {
 	public DataSourceConfiguration(Environment env, DataSource dataSource, ConfigurableApplicationContext context) {
 		String url = env.getProperty("spring.datasource.url");
 		logger.info("Database URL = {}", url);
-		
+
+		// Check connection is possible 
 		try (Connection conn = dataSource.getConnection()) {
 			; // OK
 		} catch (SQLException e) {

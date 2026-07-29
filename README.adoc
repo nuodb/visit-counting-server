@@ -111,7 +111,7 @@ INFO  c.n.quick.VisitorCountingServerApplication   The following 1 profile is ac
 * `NUODB_CA_PEM` - A certificate to use when requiring connections secured using TLS.
 
 . We can simulate a DBaaS environment by setting these environment variables to point to our local database
-* _This is not a standard NuoDBaaS feature_. The application has explicit, extra code to enable this flexibility - see `applicatiobn.properties`.
+* _This is not a standard NuoDBaaS feature_. The application has explicit, extra code to enable this flexibility - see `application.properties`.
 * On Linux or MacOS, run this command:
 +
 ```bash
