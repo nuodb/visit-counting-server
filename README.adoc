@@ -7,6 +7,7 @@ To run this locally on your own machine, you will need:
 *  Use Docker Desktop (any platform) - easiest option.
 * Install NuoDB locally (Windows or Linux only) - useful if you need to do a lot of local development and don't need to run multiple NuoDB versions.
 . A valid NuoDB license
+. The `git` utility installed (to clone this repository)
 
 IMPORTANT: If you do not have a NuoDB license contact nuodb.support@3ds.com immediately to request one, as it can take a while to arrange.
 
@@ -19,39 +20,11 @@ In our examples below, we assume the following:
 * _User Name:_ dba
 * _Password:_ dba
 
-If you have your own database available already, change these values accordingly.
+If you have your own database available already, change these values accordingly - see `application.properties`.
 
 The application will create a single table called `Visits` in your database.
 
-## Software
-
-Your company may have preferred sources for Java, NuoDB and/or Docker.
-The public locations are:
-
-Java::
-
-* OpenJDK is available here: https://www.azul.com/downloads/zulu.
-  * Scroll down to _Zulu CommunityTM Downloads_
-  * Enter Java version, your platform and processor size.
-
-NuoDB::
-
-* Go to the NuoDB support portal - you must already have an account:
-** The download instructions are https://support.nuodb.com/hc/en-us/articles/5257381367060-Physical-Virtual-Machine-Environment[here].
-* Downland and run the installer for your platform
-** If you don't have permission to run an installer on your machine, you can use the tar/zip packages instead, but they require additional manual setup.
-* See also NuoDB online documentation:
-** https://doc.nuodb.com/nuodb/latest/deployment-models/physical-or-vm-based-environments-with-nuodb-admin/installing-nuodb/installing-nuodb-on-linux[Installation for Linux]
-** https://doc.nuodb.com/nuodb/latest/deployment-models/physical-or-vm-based-environments-with-nuodb-admin/installing-nuodb/installing-nuodb-on-windows[Installation for Windows].
-
-Docker::
-
-* https://www.docker.com/products/docker-desktop[Docker for Desktop] is an easy option for Windows, MacOS or Linux (and has a one-click option to run Kubernetes as well).
-* Running NuoDB on Docker uses `docker compose`.
-** A convenient project is available at https://github.com/nuodb/nuodb-compose.
-** The "_Single Container_" or "_monolith_" option is sufficient.
-** The online documentation has a _getting-started_ guide to help you:
-https://doc.nuodb.com/nuodb/latest/quick-start-guide/docker-compose/
+If you need to setup NuoDB locally, jump to <<nuodb-setup>>.
 
 ## Run as an Application
 
@@ -138,7 +111,7 @@ INFO  c.n.quick.VisitorCountingServerApplication   The following 1 profile is ac
 * `NUODB_CA_PEM` - A certificate to use when requiring connections secured using TLS.
 
 . We can simulate a DBaaS environment by setting these environment variables to point to our local database
-* _This is not a standard NuoDBaaS feature_. The application has explicit, extra code to enable this flexibility - see the `DataSourceConfiguration` class.
+* _This is not a standard NuoDBaaS feature_. The application has explicit, extra code to enable this flexibility - see `applicatiobn.properties`.
 * On Linux or MacOS, run this command:
 +
 ```bash
@@ -169,3 +142,34 @@ java -Dspring.profiles.active=jdbc -jar target/visit-counting-server-1.0.0.jar
 **IMPORTANT:** Stop the application once you are satisfied it is working to free up port `8080`.
 
 * _Windows only:_ Destroy this `CMD`/`Powershell` window when you are happy everything is working as expected (to remove the environment variables).
+
+[#nuodb-setup]
+## Setup NuoDB
+
+Your company may have preferred sources for Java, NuoDB and/or Docker.
+The public locations are:
+
+Java::
+
+* OpenJDK is available here: https://www.azul.com/downloads/zulu.
+  * Scroll down to _Zulu CommunityTM Downloads_
+  * Enter Java version, your platform and processor size.
+
+NuoDB::
+
+* Go to the NuoDB support portal - you must already have an account:
+** The download instructions are https://support.nuodb.com/hc/en-us/articles/5257381367060-Physical-Virtual-Machine-Environment[here].
+* Downland and run the installer for your platform
+** If you don't have permission to run an installer on your machine, you can use the tar/zip packages instead, but they require additional manual setup.
+* See also NuoDB online documentation:
+** https://doc.nuodb.com/nuodb/latest/deployment-models/physical-or-vm-based-environments-with-nuodb-admin/installing-nuodb/installing-nuodb-on-linux[Installation for Linux]
+** https://doc.nuodb.com/nuodb/latest/deployment-models/physical-or-vm-based-environments-with-nuodb-admin/installing-nuodb/installing-nuodb-on-windows[Installation for Windows].
+
+Docker::
+
+* https://www.docker.com/products/docker-desktop[Docker for Desktop] is an easy option for Windows, MacOS or Linux (and has a one-click option to run Kubernetes as well).
+* Running NuoDB on Docker uses `docker compose`.
+** A convenient project is available at https://github.com/nuodb/nuodb-compose.
+** The "_Single Container_" or "_monolith_" option is sufficient.
+** The online documentation has a _getting-started_ guide to help you:
+https://doc.nuodb.com/nuodb/latest/quick-start-guide/docker-compose/
