@@ -144,7 +144,7 @@ java -Dspring.profiles.active=jdbc -jar target/visit-counting-server-1.0.0.jar
 * _Windows only:_ Destroy this `CMD`/`Powershell` window when you are happy everything is working as expected (to remove the environment variables).
 
 [#nuodb-setup]
-## Setup NuoDB
+== Setup NuoDB
 
 Your company may have preferred sources for Java, NuoDB and/or Docker.
 The public locations are:
