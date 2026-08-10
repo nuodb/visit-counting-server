@@ -5,9 +5,9 @@
 
 	<groupId>com.nuodb</groupId>
 	<artifactId>visit-counting-server</artifactId>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 	<name>visit-counting-server</name>
-	<description>Web Server Demo Application</description>
+	<description>Web Server and NuoDBaaS Demo Application</description>
 
 	<properties>
     	<!-- Spring Boot specific property, passed to Maven compiler plugin -->

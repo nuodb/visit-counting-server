@@ -49,8 +49,24 @@ public class VisitorCountingServerApplication {
 		}
 	}
 
+	/**
+	 * Default port to listen on (8080, the Tomcat default).
+	 */
+	public static final String DEFAULT_PORT = "8080";
+
+	/**
+	 * File to hold the process id of this process.
+	 */
+	public static final String VISIT_COUNTING_SERVER_PID_FILE_NAME = "visit-counting-server.pid";
+
 	/** Class SLF4J logger. Spring Boot enables SLF4J over Logback by default. */
 	private static Logger LOGGER = LoggerFactory.getLogger(VisitorCountingServerApplication.class);
+
+	/**
+	 * Use TLS or not? Disabled by default, even if the {@code XXX_CA_PEM}
+	 * environment variable is specified.
+	 */
+	private static boolean USE_TLS = Boolean.valueOf(System.getProperty("use-tls"));
 
 	@SuppressWarnings("unused")
 	private final VisitorCountingController visitorCountingController;
@@ -111,52 +127,11 @@ public class VisitorCountingServerApplication {
 	 */
 	public static void main(String[] args) {
 
-		// If a PEM is specified in the environment (typically for a NuoDBaaS database)
-		// specify the extra connection-properties required as a System property. Spring
-		// will add them to the end of the database URL (see 'application.properties').
-		String pem = System.getenv("NUODB_CA_PEM");
+		// Can override the port number via an argument
+		String port = getPortNumber(args);
 
-		if (pem != null) {
-			System.setProperty("PEM_INFO",
-					"&trustedCertificates=${NUODB_CA_PEM}&verifyHostname=false&allowSRPFallback=false");
-		}
-
-		// Default port (8080 is the default port the Tomcat servlet system uses).
-		String port = "8080";
-
-		// Handle command line argument, if specified
-		switch (args.length) {
-		case 0:
-			break; // Nothing to do, defaults to 8080
-
-		case 1:
-			// Check for and save port number
-			String arg0 = args[0];
-
-			try {
-				Integer.parseInt(arg0);
-				LOGGER.info("Port " + arg0 + " requested");
-				System.setProperty("server.port", arg0);
-				port = arg0;
-			} catch (NumberFormatException e) {
-				LOGGER.error("Expecting a port number, but got '" + arg0 + '\'');
-				LOGGER.error("Usage: java -jar hello-server.jar [<port-num>]");
-				System.exit(-1);
-			}
-			break;
-
-		default:
-			LOGGER.error("{} command-line arguments invalid. One optional argument only (port number).", args.length);
-			LOGGER.error("Usage: java -jar hello-server.jar [<port-num>]");
-			System.exit(-1);
-		}
-
-		// Log system environment
-		LOGGER.info("System Environment ...");
-		Map<String, String> env = new TreeMap<>(System.getenv());
-
-		for (Map.Entry<String, String> entry : env.entrySet())
-			LOGGER.info("    " + entry.getKey() + "=" + entry.getValue());
+		// Log environment variables and check naming prefix
+		processEnvironmentVariables();
 
 		// Run Spring Boot which in turn invokes Spring. Remember:
 		//
@@ -167,14 +142,8 @@ public class VisitorCountingServerApplication {
 		// instances, which in turn make your application work.
 		LOGGER.info("Server starting, will listen on port " + port);
 
-		File tempDir = new File("/tmp"); // *nix
-
-		if (!tempDir.exists()) {
-			tempDir = new File("/temp"); // Windows
-
-			if (!tempDir.exists()) {
-				tempDir = new File("."); // Windows
-			}
+		if (!USE_TLS) {
+			LOGGER.warn("TLS disabled.  To use TLS, run with '-Duse-tls=true'");
 		}
 
 		// Use the builder to setup Spring Boot to run a web-application using this
@@ -182,9 +151,9 @@ public class VisitorCountingServerApplication {
 		SpringApplicationBuilder app = new SpringApplicationBuilder(VisitorCountingServerApplication.class)
 				.web(WebApplicationType.SERVLET);
 
-		// Save the current process id to a file before starting Spring Boot
-		File pidFile = new File(tempDir, "visit-counting-server.pid");
-		app.build().addListeners(new ApplicationPidFileWriter(pidFile));
+		// Configure Spring Boot to create a pid file in either '/tmp' or '\temp' or
+		// current directory.
+		File pidFile = enablePidFile(app);
 
 		// Start Spring Boot, which in turn runs Spring by creating a Spring application
 		// context. Among other things, this starts embedded Tomcat web server which
@@ -236,5 +205,120 @@ public class VisitorCountingServerApplication {
 	@Bean
 	public TerminateBean getTerminateBean() {
 		return new TerminateBean();
+	}
+
+	/**
+	 * If there is a command line argument, extract it and see if it is a valid port
+	 * number.
+	 * 
+	 * @param args Command line arguments from {@code main()}.
+	 * @return The port, if specified, or {@link #DEFAULT_PORT} otherwise
+	 */
+	private static String getPortNumber(String[] args) {
+		// Default port (8080 is the default port the Tomcat servlet system uses).
+		String port = DEFAULT_PORT;
+
+		// Handle command line argument, if specified
+		switch (args.length) {
+		case 0:
+			break; // Nothing to do, defaults to 8080
+
+		case 1:
+			// Check for and save port number
+			String arg0 = args[0];
+
+			try {
+				Integer.parseInt(arg0);
+				LOGGER.info("Port " + arg0 + " requested");
+				System.setProperty("server.port", arg0);
+				port = arg0;
+			} catch (NumberFormatException e) {
+				LOGGER.error("Expecting a port number, but got '" + arg0 + '\'');
+				LOGGER.error("Usage: java -jar hello-server.jar [<port-num>]");
+				System.exit(-1);
+			}
+			break;
+
+		default:
+			LOGGER.error("{} command-line arguments invalid. One optional argument only (port number).", args.length);
+			LOGGER.error("Usage: java -jar hello-server.jar [<port-num>]");
+			System.exit(-1);
+		}
+		return port;
+	}
+
+	/**
+	 * Log the environment variables and also check to see if the NuoDBaaS variables
+	 * are using a non-standard naming prefix. If so, each variables is added to the
+	 * System properties with the default prefix of "{@code NUODB_}".
+	 * <p>
+	 * The default names are hard-coded into 'application.properties'. Spring Boot
+	 * can pick them up from the environment or the System properties.
+	 */
+	private static void processEnvironmentVariables() {
+		// Log system environment
+		LOGGER.info("System Environment ...");
+		Map<String, String> env = new TreeMap<>(System.getenv());
+
+		String DEFAULT_ENV_VAR_PREFIX = "NUODB";
+		String[] ENV_VAR_SUFFIXES = { "_ADMIN_ENDPOINT", "_DB_NAME", "_DB_USER", "_DB_PASSWORD", "_CA_PEM" };
+
+		for (Map.Entry<String, String> entry : env.entrySet()) {
+			String varName = entry.getKey();
+			String varValue = entry.getValue();
+			LOGGER.info("    " + varName + "=" + varValue);
+
+			for (String varSuffix : ENV_VAR_SUFFIXES) {
+				// Not a NuoDBaaS property, ignore
+				if (!varName.endsWith(varSuffix))
+					continue;
+
+				// Extract the prefix
+				int ix = varName.indexOf(varSuffix);
+				String prefix = varName.substring(0, ix);
+
+				// If the prefix is not NUODB, add a copy using the default prefix to the System
+				// properties. For example, if it finds {@code CARDSAMPLE_NUODB_DB_USER}, it
+				// will add {@code NUODB_DB_USER} to the System properties with the same value.
+				if (!DEFAULT_ENV_VAR_PREFIX.equals(prefix)) {
+					System.setProperty(DEFAULT_ENV_VAR_PREFIX + varSuffix, varValue);
+					LOGGER.info("    >> Adding property {}={}", DEFAULT_ENV_VAR_PREFIX + varSuffix, varValue);
+				}
+
+				// If a PEM is specified in the environment (typically for a NuoDBaaS database)
+				// specify the extra connection-properties required as a System property. Spring
+				// will add them to the end of the database URL (see 'application.properties').
+				if (USE_TLS && varSuffix.equals("_CA_PEM")) {
+					System.setProperty("PEM_INFO",
+							"&trustedCertificates=${NUODB_CA_PEM}&verifyHostname=false&allowSRPFallback=false");
+				}
+			}
+		}
+	}
+
+	/**
+	 * Configures Spring Boot to create a PID (process-id) file called
+	 * {@value #VISIT_COUNTING_SERVER_PID_FILE_NAME}. File will be created in
+	 * {@code /tmp} (Linux), {@code \temp} (Windows, if it exists) or the current
+	 * directory otherwise.
+	 * 
+	 * @param app Application builder for this application.
+	 * @return The File to create (it won't exist yet).
+	 */
+	private static File enablePidFile(SpringApplicationBuilder app) {
+		File tempDir = new File("/tmp"); // *nix
+
+		if (!tempDir.exists()) {
+			tempDir = new File("/temp"); // Windows
+
+			if (!tempDir.exists()) {
+				tempDir = new File("."); // Windows
+			}
+		}
+
+		// Get Spring Boot to save the current process id to a file on startup.
+		File pidFile = new File(tempDir, VISIT_COUNTING_SERVER_PID_FILE_NAME);
+		app.build().addListeners(new ApplicationPidFileWriter(pidFile));
+		return pidFile;
 	}
 }

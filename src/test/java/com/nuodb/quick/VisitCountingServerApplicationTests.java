@@ -6,7 +6,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("in-memory")
-class HelloServerApplicationTests {
+class VisitCountingServerApplicationTests {
 
 	@Test
 	void contextLoads() {

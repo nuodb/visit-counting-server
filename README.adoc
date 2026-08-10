@@ -4,7 +4,7 @@ To run this locally on your own machine, you will need:
 
 . Java JDK 8 (or later) installed.
 . Access to a NuoDB database. Options are:
-*  Use Docker Desktop (any platform) - easiest option.
+*  Use Docker Desktop (any platform) - easiest and recommended option (see <<docker-compose,below>>).
 * Install NuoDB locally (Windows or Linux only) - useful if you need to do a lot of local development and don't need to run multiple NuoDB versions.
 . A valid NuoDB license
 . The `git` utility installed (to clone this repository)
@@ -22,6 +22,19 @@ In our examples below, we assume the following:
 
 If you have your own database available already, change these values accordingly - see `application.properties`.
 
+* Note the syntax `${XXX:value}` means to use the Environment Variable or Java System property `XXXX` or, if not set, use `value` as the default.
+* For example to change the database host to `myhost`, the database name to `testdb`, the username to `admin`, and the password to `goalie`:
++
+[source%autofit,properties]
+------
+# Configure a DataSource - Spring Boot uses Hikari by default. If the environment
+# variables exist, they will be used, otherwise the values after the colon are used.
+spring.datasource.url=jdbc:com.nuodb://${NUODB_ADMIN_ENDPOINT:myhost}/${NUODB_DB_NAME:testdb}?schema=USER${PEM_INFO:}
+spring.datasource.username=${NUODB_DB_USER:root}
+spring.datasource.password=${NUODB_DB_PASSWORD:goalie}
+...
+------
+
 The application will create a single table called `Visits` in your database.
 
 If you need to setup NuoDB locally, jump to <<nuodb-setup>>.
@@ -33,8 +46,8 @@ If you need to setup NuoDB locally, jump to <<nuodb-setup>>.
 . To build:
 +
 ```sh
-Windows:   mvnw package
-Linux:     ./mvnw package
+Windows:       mvnw package
+Linux/MacOS:   ./mvnw package
 ```
 
 . Should create an executable jar in `target/`.  Run it:
@@ -59,7 +72,7 @@ Hello from <ip-address> - <visit message>
 
 . Kill the application and run it again.
 
-. Make a request again and it should say its your first visit (the application is using an im-memory counter which is reset if you restart).
+. Make a request again and it should say its your first visit (the application is using an in-memory counter which is reset if you restart).
 
 **IMPORTANT:** Stop the application once you are satisfied it is working to free up port `8080`.
 
@@ -68,12 +81,12 @@ Hello from <ip-address> - <visit message>
 . The application is configured using the http://spring.io[Spring Framework], an alternative to JEE and TomEE.
 
 * Spring creates instance of key objects in an application and sets up the relationships (dependencies) between them.
-* This is similar to how JEE provide `@Resource` and other configuration annotations (which JEE did not support when Spring was first developed).
+* This is similar to how JEE provides `@Resource` and other configuration annotations (which JEE did not support when Spring was first developed).
 * For a simple application like this one, Spring is lighter weight than using TomEE.
 
 . Spring supports conditional inclusion of dependencies.
-One way it does this is via a `Profile`.
-To enable persistence requires the "jdbc" profile.
+One way it does this is via a _Profile_.
+To enable persistence requires the "_jdbc_" profile.
 
 * Rerun the application with this profile:
 +
@@ -99,7 +112,7 @@ INFO  c.n.quick.VisitorCountingServerApplication   The following 1 profile is ac
 
 == Mock DBaaS environment
 
-. NuoDBaaS, like most Cloud systems, uses environment variables to pass data to an application
+. NuoDBaaS, like most Cloud systems, often uses environment variables to pass data to an application.
 
 * Environment variables are a convenient common denominator - all modern operating systems and programming languages support the use of environment variables.
 
@@ -111,7 +124,7 @@ INFO  c.n.quick.VisitorCountingServerApplication   The following 1 profile is ac
 * `NUODB_CA_PEM` - A certificate to use when requiring connections secured using TLS.
 
 . We can simulate a DBaaS environment by setting these environment variables to point to our local database
-* _This is not a standard NuoDBaaS feature_. The application has explicit, extra code to enable this flexibility - see `application.properties`.
+* _This is not a standard NuoDBaaS feature_. The application has explicit configuration to enable this flexibility - see `application.properties`.
 * On Linux or MacOS, run this command:
 +
 ```bash
@@ -165,10 +178,11 @@ NuoDB::
 ** https://doc.nuodb.com/nuodb/latest/deployment-models/physical-or-vm-based-environments-with-nuodb-admin/installing-nuodb/installing-nuodb-on-linux[Installation for Linux]
 ** https://doc.nuodb.com/nuodb/latest/deployment-models/physical-or-vm-based-environments-with-nuodb-admin/installing-nuodb/installing-nuodb-on-windows[Installation for Windows].
 
+[#docker-compose]
 Docker::
 
 * https://www.docker.com/products/docker-desktop[Docker for Desktop] is an easy option for Windows, MacOS or Linux (and has a one-click option to run Kubernetes as well).
-* Running NuoDB on Docker uses `docker compose`.
+* Running NuoDB on Docker is easiest using `docker compose`.
 ** A convenient project is available at https://github.com/nuodb/nuodb-compose.
 ** The "_Single Container_" or "_monolith_" option is sufficient.
 ** The online documentation has a _getting-started_ guide to help you:

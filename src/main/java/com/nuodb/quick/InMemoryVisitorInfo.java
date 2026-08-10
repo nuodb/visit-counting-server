@@ -46,6 +46,9 @@ public class InMemoryVisitorInfo implements VisitorInfo {
 			visitors.put(ipAddress, visitCount + 1);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public StorageSetup storageSetup() {
 		return StorageSetup.IN_MEMORY;

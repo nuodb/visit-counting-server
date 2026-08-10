@@ -24,7 +24,7 @@ import org.springframework.stereotype.Repository;
 @Profile("jdbc")
 public class JdbcVisitorInfo implements VisitorInfo {
 
-	/* - - - - - - - - - - S Q L    S T A T E M E N T S - - - - - - - - - - */
+	/* - - - - - - - - - - S Q L S T A T E M E N T S - - - - - - - - - - */
 
 	/** SQL to create the Visits table */
 	private static final String CREATE_VISIT_TABLE_SQL = //
@@ -56,9 +56,8 @@ public class JdbcVisitorInfo implements VisitorInfo {
 	private static final String UPDATE_VISIT_COUNT_SQL = //
 			"UPDATE Visits SET count = count + 1 WHERE source = ?";
 
-	/* - - - - - - - - - - E R R O R    M E S S A G E S - - - - - - - - - - */
-	
-	
+	/* - - - - - - - - - - E R R O R M E S S A G E S - - - - - - - - - - */
+
 	private static final String FAILED_GETTING_VISIT_COUNT_ERROR_MSG = //
 			"[{}] Failed getting visit count for {}: {}";
 
@@ -68,7 +67,6 @@ public class JdbcVisitorInfo implements VisitorInfo {
 	private static final String FAILED_CREATING_VISIT_TABLE_ERROR_MSG = //
 			"[{}] Failed creating visit table (aborting): {}";
 
-	
 	private Logger logger = LoggerFactory.getLogger(getClass());
 	private DataSource dataSource;
 	private StorageSetup storageSetup;
@@ -162,6 +160,9 @@ public class JdbcVisitorInfo implements VisitorInfo {
 
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public StorageSetup storageSetup() {
 		return storageSetup;
