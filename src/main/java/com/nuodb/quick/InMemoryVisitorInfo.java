@@ -48,6 +48,8 @@ public class InMemoryVisitorInfo implements VisitorInfo {
 
 	/**
 	 * {@inheritDoc}
+	 * 
+	 * @return Always {@link StorageSetup#IN_MEMORY}.
 	 */
 	@Override
 	public StorageSetup storageSetup() {

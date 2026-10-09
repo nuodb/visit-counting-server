@@ -91,8 +91,10 @@ public class VisitorCountingController {
 			break;
 		}
 
+		int teId = visitorInfo.getIdOfLastTeUsed();
+		
 		return "Hello from " + myAddress + " - " + visitDetails + " (using " + visitorInfo.storageSetup().details()
-				+ ')';
+				+ ')' + (teId == -1 ? "" : " - last query used TE " + teId);
 	}
 
 	/**

@@ -13,16 +13,22 @@ public interface VisitorInfo {
 		IN_MEMORY("in-memory map storage"),
 
 		/**
+		 * Uses Visits table in a NuoDB database created by NuoDB Component (or running
+		 * locally but configured using the same environment variables).
+		 */
+		NUO_COMPONENT("NuoDB component, ds-nuodb, defined storage"),
+
+		/**
 		 * Uses Visits table in a NuoDB database created by NuoDBaaS (or running locally
 		 * but configured using the same environment variables).
 		 */
-		NUO_DBAAS("NuoDBaaS defined storage"),
+		NUO_DBAAS("NuoDBaaS, ds-nuodbaas, defined storage"),
 
 		/**
 		 * Uses Visits table in a NuoDB database running locally and configured using
 		 * Spring properties from {@code application.properties}.
 		 */
-		NUO_SPRING("NuoDB DataSource configured by Spring");
+		NUO_LOCAL("NuoDB local database");
 
 		private String details;
 
@@ -44,6 +50,15 @@ public interface VisitorInfo {
 	 *         before.
 	 */
 	public int previousVisits(String ipAddress);
+
+	/**
+	 * Get the id of the TE used for the last SQL statement run.
+	 *
+	 * @return The TE's start id or -1 if not known or not applicable.
+	 */
+	public default int getIdOfLastTeUsed() {
+		return -1;
+	}
 
 	/**
 	 * Increment the visit count for the specified address.

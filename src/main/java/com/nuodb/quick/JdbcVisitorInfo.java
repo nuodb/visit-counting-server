@@ -24,6 +24,8 @@ import org.springframework.stereotype.Repository;
 @Profile("jdbc")
 public class JdbcVisitorInfo implements VisitorInfo {
 
+	// private final DataSourceConfiguration dataSourceConfiguration;
+
 	/* - - - - - - - - - - S Q L S T A T E M E N T S - - - - - - - - - - */
 
 	/** SQL to create the Visits table */
@@ -36,7 +38,7 @@ public class JdbcVisitorInfo implements VisitorInfo {
 	 * (requester IP address).
 	 */
 	private static final String SELECT_GET_VISIT_COUNT_SQL = //
-			"SELECT count FROM Visits WHERE source = ?";
+			"SELECT count, getstartid() AS TE_ID FROM Visits WHERE source = ?";
 
 	/**
 	 * SQL to find a given source (requester IP address) in the Visits table, if it
@@ -67,10 +69,12 @@ public class JdbcVisitorInfo implements VisitorInfo {
 	private static final String FAILED_CREATING_VISIT_TABLE_ERROR_MSG = //
 			"[{}] Failed creating visit table (aborting): {}";
 
+	protected StorageSetup storageSetup;
+	
 	private Logger logger = LoggerFactory.getLogger(getClass());
 	private DataSource dataSource;
-	private StorageSetup storageSetup;
-
+	private int teId = -1;
+	
 	/**
 	 * When an instance is created, it attempts to define the Visits table. Fails
 	 * quietly if the table already exists.
@@ -81,6 +85,7 @@ public class JdbcVisitorInfo implements VisitorInfo {
 		this.dataSource = dataSource;
 		logger.info("Using persistent storage for visitor counts");
 
+		// Create table if it doesn't already exist
 		try (Connection conn = dataSource.getConnection()) {
 			PreparedStatement stmt = conn.prepareStatement(CREATE_VISIT_TABLE_SQL);
 			stmt.executeUpdate();
@@ -93,6 +98,8 @@ public class JdbcVisitorInfo implements VisitorInfo {
 		}
 
 		storageSetup = dataSourceConfiguration.getStorageSetup();
+		logger.info("Storage setup is: {}", storageSetup);
+
 	}
 
 	/**
@@ -101,14 +108,16 @@ public class JdbcVisitorInfo implements VisitorInfo {
 	@Override
 	public int previousVisits(String ipAddress) {
 		int visitCount = -1;
+		teId = -1;
 
-		try (Connection conn = dataSource.getConnection()) {
+		try (Connection conn = getDataSource().getConnection()) {
 			PreparedStatement stmt = conn.prepareStatement(SELECT_GET_VISIT_COUNT_SQL);
 			stmt.setString(1, ipAddress);
 			ResultSet rs = stmt.executeQuery();
 
 			if (rs.next()) {
 				visitCount = rs.getInt(1);
+				teId = rs.getInt(2); // Which TE did the query just use?
 			} else {
 				visitCount = 0;
 			}
@@ -118,6 +127,14 @@ public class JdbcVisitorInfo implements VisitorInfo {
 		}
 
 		return visitCount;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getIdOfLastTeUsed() {
+		return teId;
 	}
 
 	/**
@@ -151,9 +168,7 @@ public class JdbcVisitorInfo implements VisitorInfo {
 
 			int rowsModified = stmt2.executeUpdate();
 			logger.info("{} row(s) changed by {} SQL", rowsModified, action);
-		} catch (
-
-		SQLException e) {
+		} catch (SQLException e) {
 			logger.error(FAILED_SAVING_VISIT_COUNT_ERROR_MSG, e.getClass().getSimpleName(), action, ipAddress,
 					e.getLocalizedMessage());
 		}
@@ -166,5 +181,9 @@ public class JdbcVisitorInfo implements VisitorInfo {
 	@Override
 	public StorageSetup storageSetup() {
 		return storageSetup;
+	}
+
+	protected DataSource getDataSource() {
+		return dataSource;
 	}
 }

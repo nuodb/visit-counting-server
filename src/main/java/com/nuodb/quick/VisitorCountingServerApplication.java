@@ -35,6 +35,10 @@ import org.springframework.context.annotation.Bean;
 @SpringBootApplication
 public class VisitorCountingServerApplication {
 
+	public enum ConfigSetup {
+		IN_MEMORY, LOCAL_DB, DS_NUODB, DS_NUODBAAS
+	}
+
 	/**
 	 * Logs a message when the Spring Application Context is closed.
 	 */
@@ -71,6 +75,8 @@ public class VisitorCountingServerApplication {
 	@SuppressWarnings("unused")
 	private final VisitorCountingController visitorCountingController;
 
+	private static ConfigSetup configSetup;
+	
 	/**
 	 * Application entry-point - called {@code main} in Java by convention.
 	 * <p>
@@ -248,20 +254,62 @@ public class VisitorCountingServerApplication {
 	}
 
 	/**
-	 * Log the environment variables and also check to see if the NuoDBaaS variables
-	 * are using a non-standard naming prefix. If so, each variables is added to the
-	 * System properties with the default prefix of "{@code NUODB_}".
-	 * <p>
+	 * Log the environment variables and also check to see if:
+	 * <ul>
+	 * <li><i>ds-nuodb</i> component is being used and generate the equivalent
+	 * <i>ds-nuodbaas</i> variable and add it to the System properties with the
+	 * default prefix of "{@code NUODB_}".
+	 * <li>The <i>ds-nuodbaas</i> variables are using a non-standard naming prefix.
+	 * If so, each variable is added to the System properties with the default
+	 * prefix of "{@code NUODB_}".
+	 * </ul>
 	 * The default names are hard-coded into 'application.properties'. Spring Boot
 	 * can pick them up from the environment or the System properties.
 	 */
 	private static void processEnvironmentVariables() {
 		// Log system environment
-		LOGGER.info("System Environment ...");
+		LOGGER.info("Processing Environment Variables");
 		Map<String, String> env = new TreeMap<>(System.getenv());
 
 		String DEFAULT_ENV_VAR_PREFIX = "NUODB";
+
+		// Special case: NuoDB Component exposes NUODB_ADMIN_SERVICE not
+		// NUODB_ADMIN_ENDPOINT and its other variables use DB_ prefix.
+		String nuoAdminHost = env.get("NUODB_ADMIN_SERVICE");
+		LOGGER.debug("nuoAdminHost = {}", nuoAdminHost);
+
+		if (nuoAdminHost != null) {
+			// Copy to generate their ds-nuodbaas equivalents (with the default prefix).
+			LOGGER.info("Translating ds-nuodb component properties to ds-nuodbaas equivalents");
+			String nuoAdminVarName = "NUODB_ADMIN_ENDPOINT";
+			System.setProperty(nuoAdminVarName, nuoAdminHost);
+			LOGGER.info("    >> Adding property {}={}", nuoAdminVarName, nuoAdminHost);
+			String[] COMPONENT_ENV_VARS = { "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_SCHEMA" };
+
+			// Add remaining variables under expected names
+			for (String varName : COMPONENT_ENV_VARS) {
+				String varValue = env.get(varName);
+				String newVarName = DEFAULT_ENV_VAR_PREFIX + '_' + varName;
+				System.setProperty(newVarName, varValue);
+				LOGGER.info("    >> Adding property {}={}", newVarName, varValue);
+			}
+
+			LOGGER.info("System Environment (ds-nuodb) ...");
+
+			for (Map.Entry<String, String> entry : env.entrySet()) {
+				String varName = entry.getKey();
+				String varValue = entry.getValue();
+				LOGGER.info("    " + varName + "=" + varValue);
+			}
+
+			return;
+		}
+
+		// Log all the environment variables and, if necessary, find any NuoDB related
+		// variables with a custom prefix and copy to generate their ds-nuodbaas
+		// equivalents (with the default prefix).
 		String[] ENV_VAR_SUFFIXES = { "_ADMIN_ENDPOINT", "_DB_NAME", "_DB_USER", "_DB_PASSWORD", "_CA_PEM" };
+		LOGGER.info("System Environment ...");
 
 		for (Map.Entry<String, String> entry : env.entrySet()) {
 			String varName = entry.getKey();

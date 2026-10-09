@@ -13,6 +13,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 import com.nuodb.quick.VisitorInfo.StorageSetup;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 /**
  * Dedicated Spring configuration, just to detect how the DataSource has been
@@ -20,7 +22,7 @@ import com.nuodb.quick.VisitorInfo.StorageSetup;
  * Spring Profile "jdbc" is enabled.
  */
 @Configuration
-@Profile("jdbc")
+@Profile({"jdbc", "jdbc-lb"})
 public class DataSourceConfiguration {
 
 	private Logger logger = LoggerFactory.getLogger("com.nuodb.quick.DataSourceConfiguration");
@@ -32,20 +34,40 @@ public class DataSourceConfiguration {
 	 */
 	private StorageSetup storageSetup;
 
+	private String url;
+
+	private String user;
+
+	private String pwd;
+
 	/**
-	 * Check the data source is valid (possible to create a connection), but if not
-	 * close the Spring application context. Also logs the value of the Spring Boot
-	 * database URL property {@code spring.datasource.url}.
+	 * Check the data source is valid (is able to create a connection), but if not
+	 * close the Spring application context and throw a runtime exception. Also logs
+	 * the value of the Spring Boot database URL property
+	 * {@code spring.datasource.url}.
 	 * 
-	 * @param url        The database URL used to configure the data source (from
+	 * @param url        The database URL used to configure the data source (set by
+	 *                   Spring from the {@code spring.datasource.url} property in
 	 *                   {@code application.properties}).
-	 * @param dataSource The data source defined by Spring Boot.
+	 * @param user       The user to connect as (set by Spring from the
+	 *                   {@code spring.datasource.username} property in
+	 *                   {@code application.properties}).
+	 * @param pwd        The user's password (set by Spring from the
+	 *                   {@code spring.datasource.password} property in
+	 *                   {@code application.properties}).
+	 * @param dataSource The data source auto-defined by Spring Boot using the
+	 *                   properties in {@code application.properties}.
 	 * @param context    The Spring application context.
 	 */
-	public DataSourceConfiguration(@Value("spring.datasource.url") String url, DataSource dataSource,
-			ConfigurableApplicationContext context) {
-		// String url = env.getProperty("spring.datasource.url");
-		logger.info("Database URL = {}", url);
+	public DataSourceConfiguration(@Value("${spring.datasource.url}") String url, //
+			@Value("${spring.datasource.username}") String user, @Value("${spring.datasource.password}") String pwd, //
+			DataSource dataSource, ConfigurableApplicationContext context) {
+		this.url = url;
+		this.user = user;
+		this.pwd = pwd;
+
+		// NEVER log the password in a production application
+		logger.info("Database URL = {} -> {}:{}", url, user, pwd);
 
 		// Check connection is possible
 		try (Connection conn = dataSource.getConnection()) {
@@ -58,14 +80,37 @@ public class DataSourceConfiguration {
 	}
 
 	/**
-	 * Get the storage setup that was used.
+	 * Get the storage setup that was used. A NuoDB database running locally, one
+	 * provisioned by the NuoDB Component ({@code ds-nuodb}) or one by NuoDBaas
+	 * ({@code ds-nuodbaas}).
 	 * 
-	 * @return Either {@link StorageSetup#NUO_DBAAS} or
-	 *         {@link StorageSetup#NUO_SPRING}.
+	 * @return One of {@link StorageSetup#NUO_COMPONENT} or
+	 *         {@link StorageSetup#NUO_DBAAS} {@link StorageSetup#NUO_LOCAL}.
 	 */
 	public StorageSetup getStorageSetup() {
-		String adminHost = System.getenv("NUODB_ADMIN_ENDPOINT");
-		storageSetup = adminHost != null ? StorageSetup.NUO_DBAAS : StorageSetup.NUO_SPRING;
+		if (System.getenv("NUODB_ADMIN_SERVICE") != null)
+			storageSetup = StorageSetup.NUO_COMPONENT;
+		else {
+			String adminHost = System.getenv("NUODB_ADMIN_ENDPOINT");
+			storageSetup = adminHost != null ? StorageSetup.NUO_DBAAS : StorageSetup.NUO_LOCAL;
+		}
 		return storageSetup;
+	}
+
+	/**
+	 * Create a data source that explicitly connects only to the TE with the
+	 * specified start-id.
+	 * 
+	 * @param startId The start-id of a TE.
+	 * @return The new data source.
+	 */
+	public DataSource newDataSource(int startId) {
+		HikariConfig config = new HikariConfig();
+		String jdbcUrl = url + (url.indexOf('?') == -1 ? '?' : '&') + "LBQuery=random(start_id(" + startId + "))";
+		config.setJdbcUrl(jdbcUrl);
+		config.setUsername(user);
+		config.setPassword(pwd);
+		logger.info("New data source: {}", jdbcUrl);
+		return new HikariDataSource(config);
 	}
 }
