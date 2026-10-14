@@ -34,7 +34,7 @@ public class JdbcVisitorInfoWithLB extends JdbcVisitorInfo {
 
 	/** SQL to get the start-id of each TE */
 	private static final String GET_TXN_NODE_START_IDS_SQL = //
-			"SELECT startId FROM System.Nodes WHERE Type = 'Transaction'";
+			"SELECT startId, address, port FROM System.Nodes WHERE Type = 'Transaction'";
 
 	/* - - - - - - - - - - E R R O R M E S S A G E S - - - - - - - - - - */
 
@@ -43,8 +43,9 @@ public class JdbcVisitorInfoWithLB extends JdbcVisitorInfo {
 
 	private Logger logger = LoggerFactory.getLogger(getClass());
 	private DataSource[] dataSourceArray;
-	private Random randomGenerator = new Random(System.currentTimeMillis());
+	// private Random randomGenerator = new Random(System.currentTimeMillis());
 	private int numTEs = 1;
+	private int dsIndex = 0;
 
 	/**
 	 * When an instance is created, it attempts to define the Visits table. Fails
@@ -63,19 +64,23 @@ public class JdbcVisitorInfoWithLB extends JdbcVisitorInfo {
 				numTEs = rs.getInt(1);
 
 			if (numTEs > 1) {
-				dataSourceArray = new DataSource[numTEs];
+				dataSourceArray = new DataSource[numTEs * 2];
 				stmt = conn.prepareStatement(GET_TXN_NODE_START_IDS_SQL);
 				rs = stmt.executeQuery();
 				int i = 0;
 
 				while (rs.next()) {
-					dataSourceArray[i++] = dataSourceConfiguration.newDataSource(rs.getInt(1));
+					// Using LBQuery and start-id
+					dataSourceArray[i++] = dataSourceConfiguration.newDataSource(rs.getInt(1), null);
+					// Using direct = true
+					dataSourceArray[i++] = dataSourceConfiguration.newDataSource(-1,
+							rs.getString(2) + ':' + rs.getInt(3));
 				}
 			} else if (storageSetup == StorageSetup.NUO_LOCAL || System.getenv("SYSTEMDRIVE") != null) {
 				dataSourceArray = new DataSource[3];
-				dataSourceArray[0] = dataSourceConfiguration.newDataSource(2);
-				dataSourceArray[1] = dataSourceConfiguration.newDataSource(2);
-				dataSourceArray[2] = dataSourceConfiguration.newDataSource(2);
+				dataSourceArray[0] = dataSourceConfiguration.newDataSource(2, null);
+				dataSourceArray[1] = dataSourceConfiguration.newDataSource(2, null);
+				dataSourceArray[2] = dataSourceConfiguration.newDataSource(2, null);
 				numTEs = 3;
 			}
 		} catch (SQLException e) {
@@ -92,8 +97,13 @@ public class JdbcVisitorInfoWithLB extends JdbcVisitorInfo {
 	 */
 	@Override
 	protected DataSource getDataSource() {
+		int max = dataSourceArray.length;
+		
 		if (dataSourceArray != null) {
-			int nextDataSource = randomGenerator.nextInt(numTEs);
+			if (dsIndex >= max)
+				dsIndex = 0;
+			int nextDataSource = dsIndex++;
+			// int nextDataSource = randomGenerator.nextInt(max);
 			logger.info("Using data source #{}", nextDataSource);
 			return dataSourceArray[nextDataSource];
 		} else {

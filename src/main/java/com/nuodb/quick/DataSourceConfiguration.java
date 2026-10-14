@@ -18,11 +18,11 @@ import com.zaxxer.hikari.HikariDataSource;
 
 /**
  * Dedicated Spring configuration, just to detect how the DataSource has been
- * configured. Also checks the {@link DataSource} is valid. Only used when the
- * Spring Profile "jdbc" is enabled.
+ * configured. Also checks the {@link DataSource} is valid. Only used when
+ * either Spring Profile "jdbc" or "jdbc-lb" are enabled.
  */
 @Configuration
-@Profile({"jdbc", "jdbc-lb"})
+@Profile({ "jdbc", "jdbc-lb" })
 public class DataSourceConfiguration {
 
 	private Logger logger = LoggerFactory.getLogger("com.nuodb.quick.DataSourceConfiguration");
@@ -99,14 +99,26 @@ public class DataSourceConfiguration {
 
 	/**
 	 * Create a data source that explicitly connects only to the TE with the
-	 * specified start-id.
+	 * specified start-id (using the {@code LBQuery} connection property) or
+	 * performs a direct connection (using the {@code direct=true} connection
+	 * property).
 	 * 
-	 * @param startId The start-id of a TE.
+	 * @param startId     The start-id of a TE (for use with {@code LBQuery}). Only
+	 *                    used if {@code hostAndPort} is {@code null}.
+	 * @param hostAndPort The host and port-number of a TE (for use with
+	 *                    {@code direct=true}).
 	 * @return The new data source.
 	 */
-	public DataSource newDataSource(int startId) {
+	public DataSource newDataSource(int startId, String hostAndPort) {
 		HikariConfig config = new HikariConfig();
-		String jdbcUrl = url + (url.indexOf('?') == -1 ? '?' : '&') + "LBQuery=random(start_id(" + startId + "))";
+		String jdbcUrl;
+		char sep = (url.indexOf('?') == -1 ? '?' : '&');
+
+		if (hostAndPort != null)
+			jdbcUrl = url.replaceAll("localhost", hostAndPort) + sep + "direct=true";
+		else
+			jdbcUrl = url + sep + "LBQuery=random(start_id(" + startId + "))";
+
 		config.setJdbcUrl(jdbcUrl);
 		config.setUsername(user);
 		config.setPassword(pwd);

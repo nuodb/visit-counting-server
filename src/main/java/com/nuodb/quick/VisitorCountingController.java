@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * A trivial HTTP REST controller that returns the same response for any
+ * A trivial HTTP REST controller that returns the same basic response for any
  * request:
  * <p>
  * "{@code Hello from <ip-addr> - <visit-count-info> (<configuration-info>)}".
@@ -92,7 +92,7 @@ public class VisitorCountingController {
 		}
 
 		int teId = visitorInfo.getIdOfLastTeUsed();
-		
+
 		return "Hello from " + myAddress + " - " + visitDetails + " (using " + visitorInfo.storageSetup().details()
 				+ ')' + (teId == -1 ? "" : " - last query used TE " + teId);
 	}
